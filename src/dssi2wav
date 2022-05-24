@@ -1,0 +1,16 @@
+#!/bin/bash
+name="$(basename "$1")"
+name="${name/\.so/}"
+max=${2:-1}
+rate=${3:-20000}
+[[ -d "$name" ]] && rm -rf "$name"
+mkdir "$name"
+for((i=0; i < max; i++)); do
+  ./cli-dssi-host $1 -p $i -l 0.3 -r 0.3 -f "$name/$i.wav" -n 60
+  ffmpeg -nostats -hide_banner -y -i "$name/$i.wav" -af aresample=96000,alimiter=limit=0.7:release=32,aresample=44100 /tmp/out.wav
+  sox /tmp/out.wav "$name/$i.wav" norm
+done
+set -x
+sox "$name"/*.wav /tmp/out.wav 
+sox /tmp/out.wav --no-dither "$name"_$max.wav rate 44100 sinc 45-18000 -n 30000 rate $rate
+play "$name"_$max.wav
